@@ -1,5 +1,6 @@
 import { Play } from "phosphor-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { differenceInSeconds } from "date-fns"
 
 import {
   CountdownContainer,
@@ -24,9 +25,10 @@ const newCycleFormValidationSchema = zod.object({
 
 type NewCycleFormData = zod.infer<typeof newCycleFormValidationSchema>
 interface Cycle {
-  id: string;
-  task: string;
-  minutesAmout: number;
+  id: string
+  task: string
+  minutesAmout: number
+  startDate: Date
 }
 
 export function Home() {
@@ -44,22 +46,41 @@ export function Home() {
     },
   })
 
+  const activeCycle = cycles.find(cycle => cycle.id === activeCycleId)
+
+  useEffect(() => {
+    let interval: number
+
+    if (activeCycle) {
+      interval = setInterval(() => {
+        setAmountSecondsPassed(
+          differenceInSeconds(new Date(), activeCycle.startDate)
+        )
+      }, 1000)
+    }
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [activeCycle])
+
   function handleCreateNewCycle(data: NewCycleFormData) {
     const id = String(new Date().getTime())
 
     const newCycle: Cycle = {
       id: id,
       task: data.task,
-      minutesAmout: data.minutesAmount
+      minutesAmout: data.minutesAmount,
+      startDate: new Date(),
     }
 
     setCycles(state => [...state, newCycle])
     setActiveCycleId(id)
+    setAmountSecondsPassed(0)
 
     reset()
   }
 
-  const activeCycle = cycles.find(cycle => cycle.id === activeCycleId)
 
   const totalSeconds = activeCycle ? activeCycle.minutesAmout * 60 : 0
   const currentSeconds = activeCycle ? totalSeconds - amountSecondsPassed : 0
@@ -71,7 +92,11 @@ export function Home() {
   const seconds = String(secondsAmount).padStart(2, '0')
 
 
-  console.log(activeCycle)
+  useEffect(() => {
+    if (activeCycle) {
+      document.title = `${minutes}:${seconds}`
+    }
+  }, [minutes, seconds, activeCycle])
 
   const task = watch('task')
   const isSubmitDisabled = !task
